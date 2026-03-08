@@ -97,6 +97,9 @@
 									{$t.admin.players}
 								</th>
 								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+									Progression
+								</th>
+								<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
 									{$t.admin.expires}
 								</th>
 							</tr>
@@ -121,6 +124,28 @@
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 										{session.playerCount || 0}
+									</td>
+									<td class="px-6 py-4 whitespace-nowrap">
+										{#if session.progression}
+											<div class="max-w-xs">
+												<div class="flex items-center justify-between mb-1">
+													<span class="text-xs font-medium text-gray-700">
+														Step {session.progression.currentStep} of {session.progression.totalSteps}
+													</span>
+													<span class="text-xs text-gray-500">
+														{Math.round((session.progression.completedSteps / session.progression.totalSteps) * 100)}%
+													</span>
+												</div>
+												<div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+													<div 
+														class="h-full bg-indigo-500 transition-all duration-300"
+														style="width: {(session.progression.completedSteps / session.progression.totalSteps) * 100}%"
+													></div>
+												</div>
+											</div>
+										{:else}
+											<span class="text-xs text-gray-400">No progress</span>
+										{/if}
 									</td>
 									<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
 										{new Date(session.expiresAt).toLocaleString()}

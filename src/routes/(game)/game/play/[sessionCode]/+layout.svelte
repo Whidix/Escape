@@ -7,6 +7,7 @@
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props();
 
 	let inventoryOpen = $state(false);
+	let tutorialOpen = $state(false);
 	let dragStartY = $state(0);
 	let dragCurrentY = $state(0);
 
@@ -21,6 +22,14 @@
 		inventoryOpen = false;
 		dragStartY = 0;
 		dragCurrentY = 0;
+	};
+
+	const toggleTutorial = () => {
+		tutorialOpen = !tutorialOpen;
+	};
+
+	const closeTutorial = () => {
+		tutorialOpen = false;
 	};
 
 	const handleTouchStart = (e: TouchEvent) => {
@@ -71,15 +80,16 @@
 				</svg>
 			</button>
 
-			<a
-				href={resolve('/(game)/game/play/[sessionCode]/tutorial', { sessionCode: data.sessionCode })}
+			<button
+				type="button"
+				onclick={toggleTutorial}
 				class="rounded-lg border border-indigo-200 bg-indigo-50 px-3 py-2 text-center transition-colors hover:bg-indigo-100 flex items-center justify-center"
 				aria-label="{$t.gameplay.tutorial}"
 			>
 				<svg class="h-5 w-5 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 					<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
 				</svg>
-			</a>
+			</button>
 
 			{#if data.previousStepId}
 				<form method="GET" action={resolve('/(game)/game/play/[sessionCode]', { sessionCode: data.sessionCode })}>
@@ -183,6 +193,70 @@
 				{:else}
 					<p class="py-8 text-center text-sm text-gray-500">{$t.gameplay.emptyInventory}</p>
 				{/if}
+			</div>
+		</div>
+	{/if}
+
+	{#if tutorialOpen}
+		<div
+			class="fixed inset-0 z-40 bg-black/40 transition-opacity duration-300"
+			onclick={closeTutorial}
+			onkeydown={(e) => {
+				if (e.key === 'Escape') closeTutorial();
+			}}
+			role="button"
+			tabindex={0}
+		></div>
+		<div
+			class="fixed inset-0 z-50 flex items-center justify-center px-4 py-8"
+			role="dialog"
+			aria-label="Tutorial"
+			aria-modal="true"
+		>
+			<div class="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white p-5 shadow-lg sm:p-7">
+				<div class="flex items-start justify-between mb-5">
+					<div>
+						<h1 class="text-2xl font-bold text-gray-900">{$t.gameplay.tutorialTitle}</h1>
+						<p class="mt-1 text-sm text-gray-700 sm:text-base">{$t.gameplay.tutorialIntro}</p>
+					</div>
+					<button
+						type="button"
+						onclick={closeTutorial}
+						class="text-gray-400 hover:text-gray-600"
+						aria-label="Close tutorial"
+					>
+						<svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+						</svg>
+					</button>
+				</div>
+
+				<div class="space-y-3">
+					<div class="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+						<span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-gray-700">1</span>
+						<p class="text-sm text-gray-800 sm:text-base">{$t.gameplay.tutorialPrevious}</p>
+					</div>
+					<div class="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+						<span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-gray-700">2</span>
+						<p class="text-sm text-gray-800 sm:text-base">{$t.gameplay.tutorialInventory}</p>
+					</div>
+					<div class="flex items-start gap-3 rounded-xl border border-gray-200 bg-gray-50 p-4">
+						<span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-gray-700">3</span>
+						<p class="text-sm text-gray-800 sm:text-base">{$t.gameplay.tutorialNext}</p>
+					</div>
+				</div>
+
+				<p class="mt-5 rounded-lg border border-indigo-100 bg-indigo-50 px-3 py-2 text-xs text-indigo-800 sm:text-sm">
+					{$t.gameplay.tutorial}: {$t.gameplay.inventory}, {$t.gameplay.previous}, {$t.gameplay.next}
+				</p>
+
+				<button
+					type="button"
+					onclick={closeTutorial}
+					class="mt-6 w-full rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-indigo-700"
+				>
+					Close
+				</button>
 			</div>
 		</div>
 	{/if}

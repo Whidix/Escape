@@ -23,6 +23,11 @@ type Session = {
 	completedAt?: string;
 	playerCount?: number;
 	expiresAt: string;
+	progression?: {
+		currentStep: number;
+		completedSteps: number;
+		totalSteps: number;
+	};
 };
 
 type ResolutionMetric = {
@@ -98,22 +103,38 @@ export const load: PageServerLoad = async () => {
 	const currentAndIncomingRaw = await db.query.gameSession.findMany({
 		where: and(eq(gameSession.isActive, 1), gt(gameSession.expiresAt, new Date())),
 		with: {
-			escapeGame: true,
-			players: true
+			escapeGame: {
+				with: {
+					steps: true
+				}
+			},
+			players: true,
+			progress: true
 		}
 	});
 
 	const currentAndIncomingSessions: Session[] = currentAndIncomingRaw
-		.map((session) => ({
-			id: session.id,
-			code: session.code,
-			gameName: session.escapeGame.title,
-			isActive: session.isActive === 1,
-			startedAt: session.startedAt ? new Date(session.startedAt).toISOString() : undefined,
-			completedAt: session.completedAt ? new Date(session.completedAt).toISOString() : undefined,
-			playerCount: session.players.length,
-			expiresAt: session.expiresAt.toISOString()
-		}))
+		.map((session) => {
+			const totalSteps = session.escapeGame.steps.length;
+			const completedSteps = session.progress.filter((p) => p.completedAt !== null).length;
+			const currentStep = completedSteps + 1;
+
+			return {
+				id: session.id,
+				code: session.code,
+				gameName: session.escapeGame.title,
+				isActive: session.isActive === 1,
+				startedAt: session.startedAt ? new Date(session.startedAt).toISOString() : undefined,
+				completedAt: session.completedAt ? new Date(session.completedAt).toISOString() : undefined,
+				playerCount: session.players.length,
+				expiresAt: session.expiresAt.toISOString(),
+				progression: totalSteps > 0 ? {
+					currentStep,
+					completedSteps,
+					totalSteps
+				} : undefined
+			};
+		})
 		.sort((a, b) => {
 			const aIsCurrent = Boolean(a.startedAt) && !a.completedAt;
 			const bIsCurrent = Boolean(b.startedAt) && !b.completedAt;
