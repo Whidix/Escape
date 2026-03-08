@@ -3,6 +3,7 @@ import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { escapeGame, step } from '$lib/server/db/schema';
 import { and, eq } from 'drizzle-orm';
+import { countActiveIncompleteSessions } from '$lib/server/gameValidation';
 
 export const load: PageServerLoad = async ({ params }) => {
 	const gameId = parseInt(params.id, 10);
@@ -15,7 +16,7 @@ export const load: PageServerLoad = async ({ params }) => {
 		where: eq(escapeGame.id, gameId),
 		with: {
 			steps: {
-				orderBy: (steps) => steps.order
+				orderBy: (steps, { asc }) => [asc(steps.order), asc(steps.id)]
 			}
 		}
 	});
@@ -24,8 +25,11 @@ export const load: PageServerLoad = async ({ params }) => {
 		error(404, 'Game not found');
 	}
 
+	const activeSessionCount = await countActiveIncompleteSessions(gameId);
+
 	return {
-		game
+		game,
+		activeSessionCount
 	};
 };
 
@@ -34,6 +38,13 @@ export const actions: Actions = {
 		const gameId = Number.parseInt(params.id, 10);
 		if (Number.isNaN(gameId)) {
 			return fail(400, { error: 'Invalid game ID' });
+		}
+
+		const hasActiveSessions = await countActiveIncompleteSessions(gameId);
+		if (hasActiveSessions > 0) {
+			return fail(400, { 
+				error: `Cannot reorder steps: ${hasActiveSessions} active session(s) in progress. Wait until they are completed or mark them as inactive.` 
+			});
 		}
 
 		const formData = await request.formData();
@@ -98,6 +109,13 @@ export const actions: Actions = {
 		const gameId = Number.parseInt(params.id, 10);
 		if (Number.isNaN(gameId)) {
 			return fail(400, { error: 'Invalid game ID' });
+		}
+
+		const hasActiveSessions = await countActiveIncompleteSessions(gameId);
+		if (hasActiveSessions > 0) {
+			return fail(400, { 
+				error: `Cannot delete step: ${hasActiveSessions} active session(s) in progress. Wait until they are completed or mark them as inactive.` 
+			});
 		}
 
 		const formData = await request.formData();

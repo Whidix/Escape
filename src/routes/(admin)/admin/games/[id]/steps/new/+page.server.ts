@@ -2,9 +2,10 @@ import { fail, redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { escapeGame, step } from '$lib/server/db/schema';
-import { eq, max } from 'drizzle-orm';
+import { and, eq, gte, max } from 'drizzle-orm';
 import { ensureUploadDir, generateUniqueFilename, getUploadPath } from '$lib/server/uploads';
 import { writeFile } from 'fs/promises';
+import { countActiveIncompleteSessions } from '$lib/server/gameValidation';
 
 const stepTypes = ['question', 'text', 'puzzle', 'location'] as const;
 type StepType = (typeof stepTypes)[number];
@@ -36,10 +37,13 @@ export const load: PageServerLoad = async ({ params }) => {
 
 	const nextStepOrder = lastStep + 1;
 
+	const activeSessionCount = await countActiveIncompleteSessions(gameId);
+
 	return {
 		game,
 		nextStepOrder,
-		totalSteps: lastStep
+		totalSteps: lastStep,
+		activeSessionCount
 	};
 };
 
@@ -49,6 +53,13 @@ export const actions: Actions = {
 
 		if (isNaN(gameId)) {
 			return fail(400, { error: 'Invalid game ID' });
+		}
+
+		const hasActiveSessions = await countActiveIncompleteSessions(gameId);
+		if (hasActiveSessions > 0) {
+			return fail(400, { 
+				error: `Cannot add step: ${hasActiveSessions} active session(s) in progress. Wait until they are completed or mark them as inactive.` 
+			});
 		}
 
 		const formData = await request.formData();
@@ -224,6 +235,22 @@ export const actions: Actions = {
 		}
 
 		try {
+			// If inserting in the middle, shift existing steps
+			if (order <= lastStep) {
+				const stepsToShift = await db
+					.select({ id: step.id, order: step.order })
+					.from(step)
+					.where(and(eq(step.escapeGameId, gameId), gte(step.order, order)));
+
+				// Shift all steps >= order by 1
+				for (const s of stepsToShift) {
+					await db
+						.update(step)
+						.set({ order: s.order + 1 })
+						.where(eq(step.id, s.id));
+				}
+			}
+
 			await db.insert(step).values({
 				escapeGameId: gameId,
 				title,

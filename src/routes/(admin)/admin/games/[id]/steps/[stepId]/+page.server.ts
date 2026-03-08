@@ -2,9 +2,10 @@ import { fail, redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { escapeGame, step } from '$lib/server/db/schema';
-import { and, eq, max } from 'drizzle-orm';
+import { and, eq, max, not } from 'drizzle-orm';
 import { ensureUploadDir, generateUniqueFilename, getUploadPath } from '$lib/server/uploads';
 import { writeFile } from 'fs/promises';
+import { countActiveIncompleteSessions } from '$lib/server/gameValidation';
 const stepTypes = ['question', 'text', 'puzzle', 'location'] as const;
 type StepType = (typeof stepTypes)[number];
 
@@ -42,10 +43,13 @@ export const load: PageServerLoad = async ({ params }) => {
 		.where(eq(step.escapeGameId, gameId))
 		.then((result) => result[0]?.order ?? 0);
 
+	const activeSessionCount = await countActiveIncompleteSessions(gameId);
+
 	return {
 		game,
 		step: gameStep,
-		totalSteps: lastStep
+		totalSteps: lastStep,
+		activeSessionCount
 	};
 };
 
@@ -56,6 +60,13 @@ export const actions: Actions = {
 
 		if (Number.isNaN(gameId) || Number.isNaN(stepId)) {
 			return fail(400, { error: 'Invalid ID' });
+		}
+
+		const hasActiveSessions = await countActiveIncompleteSessions(gameId);
+		if (hasActiveSessions > 0) {
+			return fail(400, { 
+				error: `Cannot modify step: ${hasActiveSessions} active session(s) in progress. Wait until they are completed or mark them as inactive.` 
+			});
 		}
 
 		const formData = await request.formData();
@@ -235,6 +246,48 @@ export const actions: Actions = {
 				order,
 				error: `L'ordre doit etre entre 1 et ${lastStep}`
 			});
+		}
+
+		// Get the current step to check if order changed
+		const currentStep = await db.query.step.findFirst({
+			where: and(eq(step.id, stepId), eq(step.escapeGameId, gameId))
+		});
+
+		if (!currentStep) {
+			return fail(404, {
+				title,
+				description,
+				type,
+				content,
+				answer,
+				hint,
+				order,
+				error: 'Etape introuvable'
+			});
+		}
+
+		// Check if order changed and if there's a conflict
+		if (currentStep.order !== order) {
+			const conflictingStep = await db.query.step.findFirst({
+				where: and(
+					eq(step.escapeGameId, gameId),
+					eq(step.order, order),
+					not(eq(step.id, stepId))
+				)
+			});
+
+			if (conflictingStep) {
+				return fail(400, {
+					title,
+					description,
+					type,
+					content,
+					answer,
+					hint,
+					order,
+					error: `Une autre etape utilise deja l'ordre ${order}. Veuillez reordonner les etapes via drag-and-drop.`
+				});
+			}
 		}
 
 		try {

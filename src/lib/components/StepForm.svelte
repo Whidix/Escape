@@ -25,7 +25,8 @@
 		submitLabel,
 		errorMessage,
 		initialValues,
-		maxOrder
+		maxOrder,
+		disabled = false
 	}: {
 		gameId: number;
 		gameTitle: string;
@@ -35,6 +36,7 @@
 		errorMessage?: string;
 		initialValues: StepFormValues;
 		maxOrder: number;
+		disabled?: boolean;
 	} = $props();
 
 	const stepTypes = ['question', 'text', 'puzzle', 'location'];
@@ -439,7 +441,15 @@
 				<div class="flex gap-4 pt-4">
 					<button
 						type="submit"
-						class="flex-1 bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition-colors"
+						{disabled}
+						class="flex-1 py-3 px-6 rounded-lg font-semibold focus:outline-none focus:ring-2 focus:ring-offset-2 transition-colors"
+						class:bg-indigo-600={!disabled}
+						class:text-white={!disabled}
+						class:hover:bg-indigo-700={!disabled}
+						class:focus:ring-indigo-500={!disabled}
+						class:bg-gray-300={disabled}
+						class:text-gray-500={disabled}
+						class:cursor-not-allowed={disabled}
 					>
 						{submitLabel}
 					</button>
