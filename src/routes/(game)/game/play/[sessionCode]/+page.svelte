@@ -43,8 +43,18 @@
 		event: string;
 		details?: Record<string, unknown>;
 	};
+	type GpsSample = {
+		lat: number;
+		lon: number;
+		accuracy: number;
+		speed: number | null;
+		altitude: number | null;
+		headFromGps: number | null;
+		timestamp: number;
+	};
 	let debugLogs = $state<DebugLogEntry[]>([]);
 	let lastOrientationEvent = $state<string | null>(null);
+	let lastGpsSample = $state<GpsSample | null>(null);
 
 	function addDebug(event: string, details?: Record<string, unknown>) {
 		const entry: DebugLogEntry = {
@@ -219,6 +229,15 @@
 				userLon = position.coords.longitude;
 				locationError = null;
 				locationPermission = 'granted';
+				lastGpsSample = {
+					lat: position.coords.latitude,
+					lon: position.coords.longitude,
+					accuracy: position.coords.accuracy,
+					speed: position.coords.speed,
+					altitude: position.coords.altitude,
+					headFromGps: position.coords.heading,
+					timestamp: position.timestamp
+				};
 				addDebug('watch_position_success', {
 					lat: userLat,
 					lon: userLon,
@@ -226,6 +245,9 @@
 					speed: position.coords.speed,
 					headFromGps: position.coords.heading
 				});
+				console.log(
+					`[gps] lat=${position.coords.latitude.toFixed(6)} lon=${position.coords.longitude.toFixed(6)} acc=${Math.round(position.coords.accuracy)}m speed=${position.coords.speed ?? 'null'} alt=${position.coords.altitude ?? 'null'} heading=${position.coords.heading ?? 'null'}`
+				);
 
 				// Try to get device heading if available from GPS
 				if (position.coords.heading !== null && position.coords.heading >= 0) {
@@ -662,6 +684,9 @@
 								<div>watchId: {watchId ?? 'null'}</div>
 								<div>userLat: {userLat ?? 'null'}</div>
 								<div>userLon: {userLon ?? 'null'}</div>
+								<div>lastGpsSample: {lastGpsSample ? `${lastGpsSample.lat.toFixed(6)}, ${lastGpsSample.lon.toFixed(6)}` : 'null'}</div>
+								<div>lastGpsAccuracy: {lastGpsSample ? `${Math.round(lastGpsSample.accuracy)}m` : 'null'}</div>
+								<div>lastGpsTimestamp: {lastGpsSample ? new Date(lastGpsSample.timestamp).toISOString() : 'null'}</div>
 								<div>stepLat: {currentStep.latitude ?? 'null'}</div>
 								<div>stepLon: {currentStep.longitude ?? 'null'}</div>
 								<div>proximityRadius: {currentStep.proximityRadius ?? 'null'}</div>
