@@ -127,6 +127,31 @@
 		return false;
 	}
 
+	// Request device orientation permission (iOS 13+)
+	async function requestOrientationPermission() {
+		if (typeof DeviceOrientationEvent === 'undefined') {
+			return false;
+		}
+
+		// Check if permission request is needed (iOS 13+)
+		const DeviceOrientationEventTyped = DeviceOrientationEvent as typeof DeviceOrientationEvent & {
+			requestPermission?: () => Promise<'granted' | 'denied'>;
+		};
+
+		if (typeof DeviceOrientationEventTyped.requestPermission === 'function') {
+			try {
+				const permission = await DeviceOrientationEventTyped.requestPermission();
+				return permission === 'granted';
+			} catch (error) {
+				console.error('Error requesting orientation permission:', error);
+				return false;
+			}
+		} else {
+			// Permission not required on this device
+			return true;
+		}
+	}
+
 	function startLocationTracking() {
 		if (!('geolocation' in navigator)) {
 			return;
@@ -142,8 +167,8 @@
 				locationError = null;
 				locationPermission = 'granted';
 
-				// Try to get device heading if available
-				if (position.coords.heading !== null) {
+				// Try to get device heading if available from GPS
+				if (position.coords.heading !== null && position.coords.heading >= 0) {
 					heading = position.coords.heading;
 				}
 			},
@@ -170,8 +195,17 @@
 				timeout: 10000
 			}
 		);
+	}
 
-		// Try to use device orientation for compass heading
+	async function startOrientationTracking() {
+		// Request permission first
+		const hasPermission = await requestOrientationPermission();
+		if (!hasPermission) {
+			console.log('Orientation permission denied or not available');
+			return;
+		}
+
+		// Start listening to orientation events
 		if (typeof DeviceOrientationEvent !== 'undefined') {
 			const hasAbsoluteOrientation = 'ondeviceorientationabsolute' in window;
 			const hasOrientation = 'ondeviceorientation' in window;
@@ -196,10 +230,9 @@
 	// Initialize location tracking
 	onMount(() => {
 		if (currentStep?.type === 'location' && isCurrentActiveStep) {
-			checkLocationPermission().then(hasPermission => {
-				if (hasPermission) {
-					startLocationTracking();
-				}
+			checkLocationPermission().then(() => {
+				startLocationTracking();
+				startOrientationTracking();
 			});
 		}
 
