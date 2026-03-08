@@ -6,16 +6,11 @@
 	let { data }: { data: PageData } = $props();
 
 	let game = $derived.by(() => data.game);
-	let steps = $state<typeof data.game.steps>([]);
+	let steps = $derived([...(game.steps ?? [])]);
 	let draggedStepId = $state<number | null>(null);
 	let reorderPayload = $state('');
 	let reorderForm = $state<HTMLFormElement | undefined>(undefined);
 	let stepToDelete = $state<{ id: number; title: string; order: number } | null>(null);
-
-	// Update steps when game data changes
-	$effect(() => {
-		steps = [...(game.steps ?? [])];
-	});
 
 	function openDeleteModal(step: { id: number; title: string; order: number }) {
 		stepToDelete = step;
