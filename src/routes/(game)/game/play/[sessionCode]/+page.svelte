@@ -38,18 +38,6 @@
 	let locationPermission = $state<'prompt' | 'granted' | 'denied' | 'checking'>('prompt');
 	let distance = $state<number | null>(null);
 	let arrowRotation = $state<number>(0);
-	type GpsSample = {
-		lat: number;
-		lon: number;
-		accuracy: number;
-		speed: number | null;
-		altitude: number | null;
-		headFromGps: number | null;
-		timestamp: number;
-	};
-	let lastOrientationEvent = $state<string | null>(null);
-	let lastGpsSample = $state<GpsSample | null>(null);
-	let debugNow = $state(Date.now());
 
 	// Calculate distance between two coordinates in meters (Haversine formula)
 	function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -192,15 +180,6 @@
 				userLon = position.coords.longitude;
 				locationError = null;
 				locationPermission = 'granted';
-				lastGpsSample = {
-					lat: position.coords.latitude,
-					lon: position.coords.longitude,
-					accuracy: position.coords.accuracy,
-					speed: position.coords.speed,
-					altitude: position.coords.altitude,
-					headFromGps: position.coords.heading,
-					timestamp: position.timestamp
-				};
 
 				// Try to get device heading if available from GPS
 				if (position.coords.heading !== null && position.coords.heading >= 0) {
@@ -244,10 +223,8 @@
 			
 			if (hasAbsoluteOrientation) {
 				window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener);
-				lastOrientationEvent = 'deviceorientationabsolute';
 			} else if (hasOrientation) {
 				window.addEventListener('deviceorientation', handleOrientation as EventListener);
-				lastOrientationEvent = 'deviceorientation';
 			}
 		}
 	}
@@ -268,10 +245,6 @@
 
 	// Initialize location tracking
 	onMount(() => {
-		const timerId = window.setInterval(() => {
-			debugNow = Date.now();
-		}, 1000);
-
 		if (currentStep?.type === 'location' && isCurrentActiveStep) {
 			checkLocationPermission().then(() => {
 				startAllTracking();
@@ -279,7 +252,6 @@
 		}
 
 		return () => {
-			window.clearInterval(timerId);
 			stopLocationTracking();
 		};
 	});
@@ -297,7 +269,6 @@
 
 	function handleOrientation(event: Event) {
 		const e = event as DeviceOrientationEvent;
-		lastOrientationEvent = event.type;
 		if (e.absolute && e.alpha !== null) {
 			heading = 360 - e.alpha; // Convert to compass heading
 		} else if (e.alpha !== null) {
@@ -573,38 +544,6 @@
 								{/if}
 							{/if}
 						</div>
-
-						<details class="rounded-lg border border-gray-300 bg-gray-50 p-3 text-xs text-gray-800">
-							<summary class="cursor-pointer font-semibold">Client Debug Info</summary>
-							<div class="mt-3 space-y-2 font-mono leading-relaxed">
-								<div>currentTime: {new Date(debugNow).toLocaleTimeString()}</div>
-								<div>step.id: {currentStep.id}</div>
-								<div>step.type: {currentStep.type}</div>
-								<div>isCurrentActiveStep: {String(isCurrentActiveStep)}</div>
-								<div>locationPermission: {locationPermission}</div>
-								<div>locationError: {locationError ?? 'null'}</div>
-								<div>watchId: {watchId ?? 'null'}</div>
-								<div>longitude: {userLon ?? 'null'}</div>
-								<div>latitude: {userLat ?? 'null'}</div>
-								<div>orientation(heading): {heading ?? 'null'}</div>
-								<div>lastGpsSample: {lastGpsSample ? `${lastGpsSample.lat.toFixed(6)}, ${lastGpsSample.lon.toFixed(6)}` : 'null'}</div>
-								<div>lastGpsAccuracy: {lastGpsSample ? `${Math.round(lastGpsSample.accuracy)}m` : 'null'}</div>
-								<div>lastGpsTimestamp: {lastGpsSample ? new Date(lastGpsSample.timestamp).toISOString() : 'null'}</div>
-								<div>stepLat: {currentStep.latitude ?? 'null'}</div>
-								<div>stepLon: {currentStep.longitude ?? 'null'}</div>
-								<div>proximityRadius: {currentStep.proximityRadius ?? 'null'}</div>
-								<div>distance: {distance ?? 'null'}</div>
-								<div>arrowRotation: {arrowRotation}</div>
-								<div>lastOrientationEvent: {lastOrientationEvent ?? 'null'}</div>
-								<div class="pt-2">debugArrow:</div>
-								<div class="flex items-center gap-3">
-									<div class="h-10 w-10 rounded-full border border-gray-300 bg-white flex items-center justify-center">
-										<div class="text-base transition-transform duration-300" style="transform: rotate({arrowRotation}deg);">↑</div>
-									</div>
-									<div>{distance !== null ? `${distance}m` : '--'}</div>
-								</div>
-							</div>
-						</details>
 					</form>
 
 					{#if currentStep.hint}
