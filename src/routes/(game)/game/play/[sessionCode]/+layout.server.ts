@@ -100,7 +100,10 @@ export const load: LayoutServerLoad = async ({ params, url }) => {
 					description: displayedStepRecord.description ?? undefined,
 					content: displayedStepRecord.content ?? undefined,
 					type: displayedStepRecord.type,
-					hint: displayedStepRecord.hint ?? undefined
+					hint: displayedStepRecord.hint ?? undefined,
+					latitude: displayedStepRecord.latitude ?? null,
+					longitude: displayedStepRecord.longitude ?? null,
+					proximityRadius: displayedStepRecord.proximityRadius ?? 50
 				}
 			: null,
 		unlockedSteps: unlockedSteps.map((entry) => ({

@@ -80,7 +80,7 @@
 		return ((θ * 180) / Math.PI + 360) % 360;
 	}
 
-	// Update arrow rotation based on user heading and target bearing
+	// Calculate distance - works independently of orientation
 	$effect(() => {
 		if (
 			currentStep?.type === 'location' &&
@@ -97,7 +97,21 @@
 				currentStep.longitude
 			);
 			distance = Math.round(dist);
+		} else {
+			distance = null;
+		}
+	});
 
+	// Calculate arrow rotation - works with or without device orientation
+	$effect(() => {
+		if (
+			currentStep?.type === 'location' &&
+			isCurrentActiveStep &&
+			userLat !== null &&
+			userLon !== null &&
+			currentStep.latitude != null &&
+			currentStep.longitude != null
+		) {
 			const bearing = calculateBearing(
 				userLat,
 				userLon,
@@ -105,10 +119,9 @@
 				currentStep.longitude
 			);
 
-			// If we have device heading, rotate relative to it; otherwise just use absolute bearing
+			// If we have device heading, rotate relative to it; otherwise use absolute bearing (north = 0°)
 			arrowRotation = heading !== null ? bearing - heading : bearing;
 		} else {
-			distance = null;
 			arrowRotation = 0;
 		}
 	});
