@@ -1,14 +1,15 @@
-import { pgTable, serial, integer, text, timestamp, varchar, pgEnum, boolean } from 'drizzle-orm/pg-core';
+import { pgTable, serial, integer, text, timestamp, varchar, pgEnum, boolean, doublePrecision } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 
 // Enum for step types
-export const stepTypeEnum = pgEnum('step_type', ['question', 'text', 'puzzle', 'challenge', 'photo', 'location']);
+export const stepTypeEnum = pgEnum('step_type', ['question', 'text', 'puzzle', 'location']);
 
-// Escape Game table
+// Escape Game table (soft delete)
 export const escapeGame = pgTable('escape_game', {
 	id: serial('id').primaryKey(),
 	title: text('title').notNull(),
 	description: text('description'),
+	isDeleted: boolean('is_deleted').default(false).notNull(),
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 	updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -23,9 +24,12 @@ export const step = pgTable('step', {
 	description: text('description'),
 	type: stepTypeEnum('type').notNull(),
 	order: integer('order').notNull(), // Order of the step in the game
-	content: text('content'), // Question text, puzzle instructions, etc.
-	answer: text('answer'), // Expected answer for question/puzzle types
+	content: text('content'), // Question text, puzzle, etc.
+	answer: text('answer'), // Expected answer for question types
 	hint: text('hint'), // Optional hint for the step
+	latitude: doublePrecision('latitude'), // Target latitude for location steps
+	longitude: doublePrecision('longitude'), // Target longitude for location steps
+	proximityRadius: integer('proximity_radius').default(50), // Proximity radius in meters (default: 50m)
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

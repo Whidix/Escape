@@ -1,1 +1,5 @@
 @import 'tailwindcss';
+
+input:where([type='datetime-local']) {
+	min-height: 2.75rem;
+}
