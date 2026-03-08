@@ -95,6 +95,9 @@
 
 			// If we have device heading, rotate relative to it; otherwise just use absolute bearing
 			arrowRotation = heading !== null ? bearing - heading : bearing;
+		} else {
+			distance = null;
+			arrowRotation = 0;
 		}
 	});
 
@@ -218,6 +221,11 @@
 		}
 	}
 
+	function startAllTracking() {
+		startLocationTracking();
+		void startOrientationTracking();
+	}
+
 	function stopLocationTracking() {
 		if (watchId !== null) {
 			navigator.geolocation.clearWatch(watchId);
@@ -231,14 +239,24 @@
 	onMount(() => {
 		if (currentStep?.type === 'location' && isCurrentActiveStep) {
 			checkLocationPermission().then(() => {
-				startLocationTracking();
-				startOrientationTracking();
+				startAllTracking();
 			});
 		}
 
 		return () => {
 			stopLocationTracking();
 		};
+	});
+
+	// If step data arrives after mount, start/stop tracking reactively.
+	$effect(() => {
+		if (currentStep?.type === 'location' && isCurrentActiveStep) {
+			if (watchId === null) {
+				startAllTracking();
+			}
+		} else if (watchId !== null) {
+			stopLocationTracking();
+		}
 	});
 
 	function handleOrientation(event: Event) {
@@ -412,7 +430,7 @@
 									</div>
 									<button
 										type="button"
-										onclick={() => startLocationTracking()}
+										onclick={() => startAllTracking()}
 										class="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-red-700"
 									>
 										{$t.gameplay.tryAgain}
@@ -432,7 +450,7 @@
 									</div>
 									<button
 										type="button"
-										onclick={() => startLocationTracking()}
+										onclick={() => startAllTracking()}
 										class="w-full rounded-lg bg-indigo-600 px-4 py-3 text-base font-semibold text-white transition-colors hover:bg-indigo-700"
 									>
 										{$t.gameplay.enableLocation}
