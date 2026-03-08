@@ -71,21 +71,21 @@ export const load: LayoutServerLoad = async ({ params, url }) => {
 		? steps.filter((entry) => entry.order <= currentStep.order)
 		: steps;
 
-	const requestedStepId = Number.parseInt(url.searchParams.get('step') ?? '', 10);
-	const isRequestedStepUnlocked = unlockedSteps.some((entry) => entry.id === requestedStepId);
+	const requestedStepOrder = Number.parseInt(url.searchParams.get('step') ?? '', 10);
+	const isRequestedStepUnlocked = unlockedSteps.some((entry) => entry.order === requestedStepOrder);
 
 	const displayedStepRecord = isRequestedStepUnlocked
-		? (unlockedSteps.find((entry) => entry.id === requestedStepId) ?? null)
+		? (unlockedSteps.find((entry) => entry.order === requestedStepOrder) ?? null)
 		: (currentStep ?? unlockedSteps.at(-1) ?? null);
 
 	const displayedStepIndex = displayedStepRecord
 		? unlockedSteps.findIndex((entry) => entry.id === displayedStepRecord.id)
 		: -1;
 
-	const previousStepId = displayedStepIndex > 0 ? unlockedSteps[displayedStepIndex - 1].id : null;
-	const nextStepId =
+	const previousStepOrder = displayedStepIndex > 0 ? unlockedSteps[displayedStepIndex - 1].order : null;
+	const nextStepOrder =
 		displayedStepIndex >= 0 && displayedStepIndex < unlockedSteps.length - 1
-			? unlockedSteps[displayedStepIndex + 1].id
+			? unlockedSteps[displayedStepIndex + 1].order
 			: null;
 
 	return {
@@ -114,8 +114,8 @@ export const load: LayoutServerLoad = async ({ params, url }) => {
 			title: entry.title,
 			isCompleted: completedStepIds.has(entry.id)
 		})),
-		previousStepId,
-		nextStepId,
+		previousStepOrder,
+		nextStepOrder,
 		collectedItems: session.collectedItems.map((entry) => ({
 			id: entry.item.id,
 			name: entry.item.name,

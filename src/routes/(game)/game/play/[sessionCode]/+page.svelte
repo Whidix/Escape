@@ -303,20 +303,10 @@
 	});
 </script>
 
-<div class="min-h-dvh bg-gray-50">
-	<header class="sticky top-0 z-10 bg-white/95 shadow-sm backdrop-blur">
-		<div class="mx-auto max-w-4xl px-3 py-3 sm:px-4 sm:py-4">
-			<h1 class="text-xl font-bold text-gray-900 sm:text-2xl">{$t.home.title}</h1>
-			<p class="text-sm text-gray-600">{$t.gameplay.progress}: {data.sessionCode || 'Loading...'}</p>
-		</div>
-	</header>
+<div class="min-h-full bg-gray-50">
 
 	<main class="mx-auto max-w-4xl px-3 py-5 sm:px-4 sm:py-8">
 		<div class="mb-5 sm:mb-8">
-			<div class="flex items-center justify-between mb-2">
-				<span class="text-sm font-medium text-gray-700">{$t.gameplay.progress}</span>
-				<span class="text-xs text-gray-500 sm:text-sm">{$t.gameplay.step} {data.currentStepOrder || 0} {$t.gameplay.of} {data.totalSteps || 0}</span>
-			</div>
 			<div class="w-full bg-gray-200 rounded-full h-2.5">
 				<div
 					class="bg-indigo-600 h-2.5 rounded-full transition-all duration-300"

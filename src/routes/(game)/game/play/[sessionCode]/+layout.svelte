@@ -91,9 +91,9 @@
 				</svg>
 			</button>
 
-			{#if data.previousStepId}
+			{#if data.previousStepOrder}
 				<form method="GET" action={resolve('/(game)/game/play/[sessionCode]', { sessionCode: data.sessionCode })}>
-					<input type="hidden" name="step" value={data.previousStepId} />
+					<input type="hidden" name="step" value={data.previousStepOrder} />
 					<button
 						type="submit"
 						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
@@ -107,9 +107,9 @@
 				</span>
 			{/if}
 
-			{#if data.nextStepId}
+			{#if data.nextStepOrder}
 				<form method="GET" action={resolve('/(game)/game/play/[sessionCode]', { sessionCode: data.sessionCode })}>
-					<input type="hidden" name="step" value={data.nextStepId} />
+					<input type="hidden" name="step" value={data.nextStepOrder} />
 					<button
 						type="submit"
 						class="w-full rounded-lg border border-gray-300 px-3 py-2 text-center text-sm font-medium text-gray-700 transition-colors hover:bg-gray-100"
