@@ -38,11 +38,6 @@
 	let locationPermission = $state<'prompt' | 'granted' | 'denied' | 'checking'>('prompt');
 	let distance = $state<number | null>(null);
 	let arrowRotation = $state<number>(0);
-	type DebugLogEntry = {
-		ts: string;
-		event: string;
-		details?: Record<string, unknown>;
-	};
 	type GpsSample = {
 		lat: number;
 		lon: number;
@@ -52,19 +47,9 @@
 		headFromGps: number | null;
 		timestamp: number;
 	};
-	let debugLogs = $state<DebugLogEntry[]>([]);
 	let lastOrientationEvent = $state<string | null>(null);
 	let lastGpsSample = $state<GpsSample | null>(null);
-
-	function addDebug(event: string, details?: Record<string, unknown>) {
-		const entry: DebugLogEntry = {
-			ts: new Date().toISOString(),
-			event,
-			details
-		};
-		debugLogs = [entry, ...debugLogs].slice(0, 80);
-		console.log('[location-debug]', event, details ?? {});
-	}
+	let debugNow = $state(Date.now());
 
 	// Calculate distance between two coordinates in meters (Haversine formula)
 	function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -122,31 +107,17 @@
 
 			// If we have device heading, rotate relative to it; otherwise just use absolute bearing
 			arrowRotation = heading !== null ? bearing - heading : bearing;
-			addDebug('computed_distance_bearing', {
-				distance,
-				bearing,
-				heading,
-				arrowRotation
-			});
 		} else {
 			distance = null;
 			arrowRotation = 0;
-			addDebug('reset_distance_rotation', {
-				stepType: currentStep?.type ?? null,
-				isCurrentActiveStep,
-				hasUserCoords: userLat !== null && userLon !== null,
-				hasStepCoords: currentStep?.latitude != null && currentStep?.longitude != null
-			});
 		}
 	});
 
 	// Check and request location permission
 	async function checkLocationPermission() {
-		addDebug('check_location_permission_start');
 		if (!('geolocation' in navigator)) {
 			locationError = 'Geolocation is not supported by your device';
 			locationPermission = 'denied';
-			addDebug('check_location_permission_no_geolocation');
 			return false;
 		}
 
@@ -155,37 +126,24 @@
 			try {
 				const result = await navigator.permissions.query({ name: 'geolocation' });
 				locationPermission = result.state as 'granted' | 'denied' | 'prompt';
-				addDebug('check_location_permission_result', {
-					permission: result.state
-				});
 				
 				// Listen for permission changes
 				result.addEventListener('change', () => {
 					locationPermission = result.state as 'granted' | 'denied' | 'prompt';
-					addDebug('check_location_permission_changed', {
-						permission: result.state
-					});
 				});
 				
 				return result.state === 'granted';
-			} catch (e) {
+			} catch {
 				// Some browsers don't support permissions API for geolocation
-				console.log('Permissions API not fully supported', e);
-				addDebug('check_location_permission_api_error', {
-					error: e instanceof Error ? e.message : String(e)
-				});
 			}
 		}
 		
-		addDebug('check_location_permission_fallback_prompt');
 		return false;
 	}
 
 	// Request device orientation permission (iOS 13+)
 	async function requestOrientationPermission() {
-		addDebug('request_orientation_permission_start');
 		if (typeof DeviceOrientationEvent === 'undefined') {
-			addDebug('request_orientation_permission_no_api');
 			return false;
 		}
 
@@ -197,26 +155,18 @@
 		if (typeof DeviceOrientationEventTyped.requestPermission === 'function') {
 			try {
 				const permission = await DeviceOrientationEventTyped.requestPermission();
-				addDebug('request_orientation_permission_result', { permission });
 				return permission === 'granted';
-			} catch (error) {
-				console.error('Error requesting orientation permission:', error);
-				addDebug('request_orientation_permission_error', {
-					error: error instanceof Error ? error.message : String(error)
-				});
+			} catch {
 				return false;
 			}
 		} else {
 			// Permission not required on this device
-			addDebug('request_orientation_permission_not_required');
 			return true;
 		}
 	}
 
 	function startLocationTracking() {
-		addDebug('start_location_tracking_called');
 		if (!('geolocation' in navigator)) {
-			addDebug('start_location_tracking_no_geolocation');
 			return;
 		}
 
@@ -238,16 +188,6 @@
 					headFromGps: position.coords.heading,
 					timestamp: position.timestamp
 				};
-				addDebug('watch_position_success', {
-					lat: userLat,
-					lon: userLon,
-					accuracy: position.coords.accuracy,
-					speed: position.coords.speed,
-					headFromGps: position.coords.heading
-				});
-				console.log(
-					`[gps] lat=${position.coords.latitude.toFixed(6)} lon=${position.coords.longitude.toFixed(6)} acc=${Math.round(position.coords.accuracy)}m speed=${position.coords.speed ?? 'null'} alt=${position.coords.altitude ?? 'null'} heading=${position.coords.heading ?? 'null'}`
-				);
 
 				// Try to get device heading if available from GPS
 				if (position.coords.heading !== null && position.coords.heading >= 0) {
@@ -255,12 +195,6 @@
 				}
 			},
 			(error) => {
-				console.error('Geolocation error:', error);
-				addDebug('watch_position_error', {
-					code: error.code,
-					message: error.message
-				});
-				
 				if (error.code === error.PERMISSION_DENIED) {
 					locationError = 'Location access was denied. Please enable location in your browser settings.';
 					locationPermission = 'denied';
@@ -281,19 +215,12 @@
 				timeout: 10000
 			}
 		);
-
-		addDebug('watch_position_started', {
-			watchId
-		});
 	}
 
 	async function startOrientationTracking() {
-		addDebug('start_orientation_tracking_called');
 		// Request permission first
 		const hasPermission = await requestOrientationPermission();
 		if (!hasPermission) {
-			console.log('Orientation permission denied or not available');
-			addDebug('start_orientation_tracking_permission_denied');
 			return;
 		}
 
@@ -301,51 +228,37 @@
 		if (typeof DeviceOrientationEvent !== 'undefined') {
 			const hasAbsoluteOrientation = 'ondeviceorientationabsolute' in window;
 			const hasOrientation = 'ondeviceorientation' in window;
-			addDebug('start_orientation_tracking_capabilities', {
-				hasAbsoluteOrientation,
-				hasOrientation
-			});
 			
 			if (hasAbsoluteOrientation) {
 				window.addEventListener('deviceorientationabsolute', handleOrientation as EventListener);
 				lastOrientationEvent = 'deviceorientationabsolute';
-				addDebug('start_orientation_tracking_listener_added', {
-					event: 'deviceorientationabsolute'
-				});
 			} else if (hasOrientation) {
 				window.addEventListener('deviceorientation', handleOrientation as EventListener);
 				lastOrientationEvent = 'deviceorientation';
-				addDebug('start_orientation_tracking_listener_added', {
-					event: 'deviceorientation'
-				});
 			}
 		}
 	}
 
 	function startAllTracking() {
-		addDebug('start_all_tracking_called');
 		startLocationTracking();
 		void startOrientationTracking();
 	}
 
 	function stopLocationTracking() {
-		addDebug('stop_tracking_called', { watchId });
 		if (watchId !== null) {
 			navigator.geolocation.clearWatch(watchId);
 			watchId = null;
-			addDebug('watch_position_stopped');
 		}
 		window.removeEventListener('deviceorientationabsolute', handleOrientation as EventListener);
 		window.removeEventListener('deviceorientation', handleOrientation as EventListener);
-		addDebug('orientation_listeners_removed');
 	}
 
 	// Initialize location tracking
 	onMount(() => {
-		addDebug('component_mounted', {
-			stepType: currentStep?.type ?? null,
-			isCurrentActiveStep
-		});
+		const timerId = window.setInterval(() => {
+			debugNow = Date.now();
+		}, 1000);
+
 		if (currentStep?.type === 'location' && isCurrentActiveStep) {
 			checkLocationPermission().then(() => {
 				startAllTracking();
@@ -353,6 +266,7 @@
 		}
 
 		return () => {
+			window.clearInterval(timerId);
 			stopLocationTracking();
 		};
 	});
@@ -361,16 +275,9 @@
 	$effect(() => {
 		if (currentStep?.type === 'location' && isCurrentActiveStep) {
 			if (watchId === null) {
-				addDebug('reactive_start_tracking', {
-					stepId: currentStep?.id ?? null
-				});
 				startAllTracking();
 			}
 		} else if (watchId !== null) {
-			addDebug('reactive_stop_tracking', {
-				stepType: currentStep?.type ?? null,
-				isCurrentActiveStep
-			});
 			stopLocationTracking();
 		}
 	});
@@ -380,31 +287,12 @@
 		lastOrientationEvent = event.type;
 		if (e.absolute && e.alpha !== null) {
 			heading = 360 - e.alpha; // Convert to compass heading
-			addDebug('orientation_update_absolute', {
-				eventType: event.type,
-				alpha: e.alpha,
-				heading
-			});
 		} else if (e.alpha !== null) {
 			// Fallback for iOS with webkitCompassHeading
 			const webkit = e as DeviceOrientationEvent & { webkitCompassHeading?: number };
 			if (webkit.webkitCompassHeading !== undefined) {
 				heading = webkit.webkitCompassHeading;
-				addDebug('orientation_update_webkit', {
-					eventType: event.type,
-					webkitCompassHeading: webkit.webkitCompassHeading,
-					heading
-				});
-			} else {
-				addDebug('orientation_update_no_heading', {
-					eventType: event.type,
-					alpha: e.alpha
-				});
 			}
-		} else {
-			addDebug('orientation_event_without_alpha', {
-				eventType: event.type
-			});
 		}
 	}
 
@@ -676,14 +564,16 @@
 						<details class="rounded-lg border border-gray-300 bg-gray-50 p-3 text-xs text-gray-800">
 							<summary class="cursor-pointer font-semibold">Client Debug Info</summary>
 							<div class="mt-3 space-y-2 font-mono leading-relaxed">
+								<div>currentTime: {new Date(debugNow).toLocaleTimeString()}</div>
 								<div>step.id: {currentStep.id}</div>
 								<div>step.type: {currentStep.type}</div>
 								<div>isCurrentActiveStep: {String(isCurrentActiveStep)}</div>
 								<div>locationPermission: {locationPermission}</div>
 								<div>locationError: {locationError ?? 'null'}</div>
 								<div>watchId: {watchId ?? 'null'}</div>
-								<div>userLat: {userLat ?? 'null'}</div>
-								<div>userLon: {userLon ?? 'null'}</div>
+								<div>longitude: {userLon ?? 'null'}</div>
+								<div>latitude: {userLat ?? 'null'}</div>
+								<div>orientation(heading): {heading ?? 'null'}</div>
 								<div>lastGpsSample: {lastGpsSample ? `${lastGpsSample.lat.toFixed(6)}, ${lastGpsSample.lon.toFixed(6)}` : 'null'}</div>
 								<div>lastGpsAccuracy: {lastGpsSample ? `${Math.round(lastGpsSample.accuracy)}m` : 'null'}</div>
 								<div>lastGpsTimestamp: {lastGpsSample ? new Date(lastGpsSample.timestamp).toISOString() : 'null'}</div>
@@ -691,23 +581,14 @@
 								<div>stepLon: {currentStep.longitude ?? 'null'}</div>
 								<div>proximityRadius: {currentStep.proximityRadius ?? 'null'}</div>
 								<div>distance: {distance ?? 'null'}</div>
-								<div>heading: {heading ?? 'null'}</div>
 								<div>arrowRotation: {arrowRotation}</div>
 								<div>lastOrientationEvent: {lastOrientationEvent ?? 'null'}</div>
-								<div class="pt-1 font-semibold">Recent logs ({debugLogs.length})</div>
-								<div class="max-h-64 overflow-auto rounded border border-gray-200 bg-white p-2">
-									{#if debugLogs.length === 0}
-										<div>No logs yet</div>
-									{:else}
-										{#each debugLogs as log (log.ts + log.event)}
-											<div class="mb-2 border-b border-gray-100 pb-2 last:mb-0 last:border-b-0 last:pb-0">
-												<div>[{log.ts}] {log.event}</div>
-												{#if log.details}
-													<pre class="mt-1 whitespace-pre-wrap break-all text-[11px]">{JSON.stringify(log.details, null, 2)}</pre>
-												{/if}
-											</div>
-										{/each}
-									{/if}
+								<div class="pt-2">debugArrow:</div>
+								<div class="flex items-center gap-3">
+									<div class="h-10 w-10 rounded-full border border-gray-300 bg-white flex items-center justify-center">
+										<div class="text-base transition-transform duration-300" style="transform: rotate({arrowRotation}deg);">↑</div>
+									</div>
+									<div>{distance !== null ? `${distance}m` : '--'}</div>
 								</div>
 							</div>
 						</details>
