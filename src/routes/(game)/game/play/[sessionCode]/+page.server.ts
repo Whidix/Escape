@@ -210,5 +210,61 @@ export const actions: Actions = {
 		}
 
 		redirect(303, `/game/play/${session.code}`);
+	},
+
+	completePuzzle: async ({ params, request }) => {
+		const sessionCode = params.sessionCode.toUpperCase().trim();
+		if (!sessionCode) {
+			return fail(400, { error: 'Invalid session code' });
+		}
+
+		const formData = await request.formData();
+		const stepId = Number.parseInt(formData.get('stepId')?.toString() ?? '', 10);
+
+		if (!Number.isInteger(stepId) || stepId <= 0) {
+			return fail(400, { error: 'Invalid step ID' });
+		}
+
+		const session = await db.query.gameSession.findFirst({
+			where: eq(gameSession.code, sessionCode)
+		});
+		if (!session) {
+			return fail(404, { error: 'Session not found' });
+		}
+
+		const stepRecord = await db.query.step.findFirst({
+			where: and(eq(step.id, stepId), eq(step.escapeGameId, session.escapeGameId))
+		});
+
+		if (!stepRecord) {
+			return fail(404, { error: 'Step not found' });
+		}
+
+		if (stepRecord.type !== 'puzzle') {
+			return fail(400, { error: 'This step is not a puzzle step' });
+		}
+
+		const existingProgress = await db.query.sessionProgress.findFirst({
+			where: and(eq(sessionProgress.gameSessionId, session.id), eq(sessionProgress.stepId, stepId))
+		});
+
+		if (existingProgress) {
+			await db
+				.update(sessionProgress)
+				.set({
+					attempts: existingProgress.attempts + 1,
+					completedAt: existingProgress.completedAt ?? new Date()
+				})
+				.where(eq(sessionProgress.id, existingProgress.id));
+		} else {
+			await db.insert(sessionProgress).values({
+				gameSessionId: session.id,
+				stepId,
+				attempts: 1,
+				completedAt: new Date()
+			});
+		}
+
+		redirect(303, `/game/play/${session.code}`);
 	}
 };

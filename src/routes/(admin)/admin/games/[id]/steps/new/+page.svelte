@@ -24,7 +24,11 @@
 			: '',
 		proximityRadius: typeof formMap.proximityRadius === 'string' || typeof formMap.proximityRadius === 'number'
 			? formMap.proximityRadius
-			: 50
+			: 50,
+		imageUrl: typeof formMap.imageUrl === 'string' ? formMap.imageUrl : null,
+		puzzlePieces: typeof formMap.puzzlePieces === 'string' || typeof formMap.puzzlePieces === 'number'
+			? formMap.puzzlePieces
+			: 9
 	}));
 </script>
 

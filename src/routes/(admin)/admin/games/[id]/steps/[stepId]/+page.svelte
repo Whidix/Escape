@@ -27,7 +27,11 @@
 			: data.step.longitude,
 		proximityRadius: typeof formMap.proximityRadius === 'string' || typeof formMap.proximityRadius === 'number'
 			? formMap.proximityRadius
-			: (data.step.proximityRadius ?? 50)
+			: (data.step.proximityRadius ?? 50),
+		imageUrl: typeof formMap.imageUrl === 'string' ? formMap.imageUrl : (data.step.imageUrl ?? null),
+		puzzlePieces: typeof formMap.puzzlePieces === 'string' || typeof formMap.puzzlePieces === 'number'
+			? formMap.puzzlePieces
+			: (data.step.puzzlePieces ?? 9)
 	}));
 </script>
 

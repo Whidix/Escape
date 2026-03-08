@@ -3,6 +3,8 @@ import type { PageServerLoad, Actions } from './$types';
 import { db } from '$lib/server/db';
 import { escapeGame, step } from '$lib/server/db/schema';
 import { eq, max } from 'drizzle-orm';
+import { ensureUploadDir, generateUniqueFilename, getUploadPath } from '$lib/server/uploads';
+import { writeFile } from 'fs/promises';
 
 const stepTypes = ['question', 'text', 'puzzle', 'location'] as const;
 type StepType = (typeof stepTypes)[number];
@@ -60,6 +62,62 @@ export const actions: Actions = {
 		const latitude = formData.get('latitude')?.toString() ? parseFloat(formData.get('latitude')!.toString()) : null;
 		const longitude = formData.get('longitude')?.toString() ? parseFloat(formData.get('longitude')!.toString()) : null;
 		const proximityRadius = formData.get('proximityRadius')?.toString() ? parseInt(formData.get('proximityRadius')!.toString(), 10) : 50;
+		const puzzleImage = formData.get('puzzleImage') as File | null;
+		const existingImageUrl = formData.get('existingImageUrl')?.toString() || null;
+		const puzzlePieces = formData.get('puzzlePieces')?.toString() ? parseInt(formData.get('puzzlePieces')!.toString(), 10) : null;
+
+		let imageUrl: string | null = existingImageUrl;
+
+		// Handle puzzle image upload
+		if (puzzleImage && puzzleImage.size > 0) {
+			const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+			const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+			if (puzzleImage.size > MAX_FILE_SIZE) {
+				return fail(400, {
+					title,
+					description,
+					type,
+					content,
+					answer,
+					hint,
+					error: 'Image size exceeds 10MB limit'
+				});
+			}
+
+			if (!ALLOWED_TYPES.includes(puzzleImage.type)) {
+				return fail(400, {
+					title,
+					description,
+					type,
+					content,
+					answer,
+					hint,
+					error: 'Invalid image format. Only JPG, PNG, GIF, and WebP are allowed'
+				});
+			}
+
+			try {
+				await ensureUploadDir();
+				const uniqueFilename = generateUniqueFilename(puzzleImage.name);
+				const uploadPath = getUploadPath(uniqueFilename);
+				const arrayBuffer = await puzzleImage.arrayBuffer();
+				const buffer = Buffer.from(arrayBuffer);
+				await writeFile(uploadPath, buffer);
+				imageUrl = `/uploads/${uniqueFilename}`;
+			} catch (uploadError) {
+				console.error('Image upload error:', uploadError);
+				return fail(500, {
+					title,
+					description,
+					type,
+					content,
+					answer,
+					hint,
+					error: 'Failed to upload image'
+				});
+			}
+		}
 
 		if (!title) {
 			return fail(400, {
@@ -177,7 +235,9 @@ export const actions: Actions = {
 				hint: hint || null,
 				latitude,
 				longitude,
-				proximityRadius
+				proximityRadius,
+				imageUrl,
+				puzzlePieces
 			});
 		} catch (error) {
 			console.error('Create step error:', error);

@@ -3,6 +3,7 @@
 	import { onMount } from 'svelte';
 	import type { ActionData, PageData } from './$types';
 	import { t } from '$lib/i18n';
+	import Puzzle from '$lib/components/Puzzle.svelte';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -16,6 +17,8 @@
 		latitude?: number | null;
 		longitude?: number | null;
 		proximityRadius?: number | null;
+		imageUrl?: string;
+		puzzlePieces?: number;
 	};
 
 	let currentStep = $derived((data.displayedStep as Step | null) ?? null);
@@ -28,6 +31,7 @@
 			: ''
 	);
 	let isLoading = $state(false);
+	let puzzleForm = $state<HTMLFormElement | null>(null);
 
 	// Location tracking state
 	let userLat = $state<number | null>(null);
@@ -335,7 +339,49 @@
 					</div>
 				{/if}
 
-				{#if (currentStep.type === 'question' || currentStep.type === 'puzzle') && isCurrentActiveStep}
+				{#if currentStep.type === 'puzzle' && isCurrentActiveStep}
+					{#if currentStep.imageUrl && currentStep.puzzlePieces}
+						<div class="mb-6">
+							<Puzzle 
+								imageUrl={currentStep.imageUrl}
+								puzzlePieces={currentStep.puzzlePieces}
+								onComplete={() => {
+									if (puzzleForm) {
+										isLoading = true;
+										puzzleForm.requestSubmit();
+									}
+								}}
+							/>
+						</div>
+						<form
+							bind:this={puzzleForm}
+							method="POST"
+							action="?/completePuzzle"
+							use:enhance={() => {
+								return async ({ update }) => {
+									await update();
+									isLoading = false;
+								};
+							}}
+							style="display: none;"
+						>
+							<input type="hidden" name="stepId" value={currentStep.id} />
+						</form>
+					{:else}
+						<div class="bg-red-50 text-red-700 px-4 py-3 rounded-lg text-sm">
+							Puzzle configuration error: Missing image or puzzle pieces
+						</div>
+					{/if}
+
+					{#if currentStep.hint}
+						<details class="mt-4">
+							<summary class="cursor-pointer text-indigo-600 hover:text-indigo-700 font-medium">
+								{$t.gameplay.needAHint}
+							</summary>
+							<p class="mt-2 text-gray-700 bg-yellow-50 p-4 rounded-lg">{currentStep.hint}</p>
+						</details>
+					{/if}
+				{:else if currentStep.type === 'question' && isCurrentActiveStep}
 					<form
 						method="POST"
 						action="?/submitAnswer"

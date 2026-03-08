@@ -13,6 +13,8 @@
 		latitude?: number | string | null;
 		longitude?: number | string | null;
 		proximityRadius?: number | string;
+		imageUrl?: string | null;
+		puzzlePieces?: number | string;
 	};
 
 	let {
@@ -37,6 +39,44 @@
 
 	const stepTypes = ['question', 'text', 'puzzle', 'location'];
 	let selectedType = $derived(initialValues.type || 'question');
+	let currentImageUrl = $state<string | null>(null);
+	let selectedFileName = $state<string | null>(null);
+
+	// Initialize image URL from initialValues
+	$effect(() => {
+		if (initialValues.imageUrl && !currentImageUrl) {
+			currentImageUrl = initialValues.imageUrl;
+		}
+	});
+
+	function handleFileSelect(event: Event) {
+		const input = event.target as HTMLInputElement;
+		const file = input.files?.[0];
+		
+		if (file) {
+			selectedFileName = file.name;
+			// Create a preview URL for the selected image
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				currentImageUrl = e.target?.result as string;
+			};
+			reader.readAsDataURL(file);
+		} else {
+			selectedFileName = null;
+			if (!initialValues.imageUrl) {
+				currentImageUrl = null;
+			}
+		}
+	}
+
+	function clearImage() {
+		currentImageUrl = initialValues.imageUrl || null;
+		selectedFileName = null;
+		const fileInput = document.getElementById('puzzleImage') as HTMLInputElement;
+		if (fileInput) {
+			fileInput.value = '';
+		}
+	}
 
 	let fieldConfig = $derived.by(() => {
 		switch (selectedType) {
@@ -46,7 +86,8 @@
 					contentPlaceholder: 'Text shown to players',
 					showLocation: false,
 					showAnswer: false,
-					showHint: false
+					showHint: false,
+					showPuzzle: false
 				};
 			case 'location':
 				return {
@@ -54,7 +95,8 @@
 					contentPlaceholder: 'Describe where players need to go',
 					showLocation: true,
 					showAnswer: true,
-					showHint: true
+					showHint: true,
+					showPuzzle: false
 				};
 			case 'puzzle':
 				return {
@@ -62,7 +104,8 @@
 					contentPlaceholder: 'Describe the puzzle to solve',
 					showLocation: false,
 					showAnswer: true,
-					showHint: true
+					showHint: true,
+					showPuzzle: true
 				};
 			default:
 				return {
@@ -70,7 +113,8 @@
 					contentPlaceholder: 'Enter the question for players',
 					showLocation: false,
 					showAnswer: true,
-					showHint: true
+					showHint: true,
+					showPuzzle: false
 				};
 		}
 	});
@@ -90,7 +134,7 @@
 		</div>
 
 		<div class="bg-white rounded-xl shadow-md overflow-hidden">
-			<form method="POST" use:enhance class="p-8 space-y-6">
+			<form method="POST" use:enhance enctype="multipart/form-data" class="p-8 space-y-6">
 				<div class="grid grid-cols-2 gap-6">
 					<div class="col-span-2">
 						<label for="title" class="block text-sm font-medium text-gray-700 mb-2">
@@ -247,6 +291,80 @@
 										class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-none transition-colors"
 									/>
 									<p class="text-xs text-gray-500 mt-1">Distance in meters within which the step will be validated (default: 50m)</p>
+								</div>
+							</div>
+						</div>
+					{/if}
+
+					{#if fieldConfig.showPuzzle}
+						<div class="col-span-2 p-4 bg-purple-50 rounded-lg border border-purple-200">
+							<h3 class="text-sm font-semibold text-purple-900 mb-4">Puzzle Configuration</h3>
+							<div class="space-y-4">
+								<div>
+									<label for="puzzleImage" class="block text-sm font-medium text-gray-700 mb-2">
+										Puzzle Image {#if !initialValues.imageUrl}<span class="text-red-500">*</span>{/if}
+									</label>
+									<input
+										id="puzzleImage"
+										type="file"
+										name="puzzleImage"
+										accept="image/jpeg,image/png,image/gif,image/webp"
+										onchange={handleFileSelect}
+										class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-none transition-colors file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100"
+									/>
+									{#if selectedFileName}
+										<p class="text-sm text-green-600 mt-2 flex items-center gap-1">
+											<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+												<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+											</svg>
+											Selected: {selectedFileName}
+										</p>
+									{/if}
+									{#if currentImageUrl}
+										<div class="mt-3 space-y-2">
+											<p class="text-sm text-gray-600 font-medium">
+												{selectedFileName ? 'Preview of new image:' : 'Current image:'}
+											</p>
+											<div class="relative inline-block">
+												<img src={currentImageUrl} alt="Puzzle preview" class="max-w-sm max-h-64 rounded-lg border-2 border-purple-300 shadow-md" />
+												{#if selectedFileName}
+													<button
+														type="button"
+														onclick={clearImage}
+														class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1.5 shadow-lg transition-colors"
+														title="Remove selected image"
+													>
+														<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+														</svg>
+													</button>
+												{/if}
+											</div>
+										</div>
+									{/if}
+									{#if initialValues.imageUrl && !selectedFileName}
+										<input type="hidden" name="existingImageUrl" value={initialValues.imageUrl} />
+									{/if}
+									<p class="text-xs text-gray-500 mt-2">
+										Upload an image for the puzzle. Accepted formats: JPG, PNG, GIF, WebP (max 10MB)
+									</p>
+								</div>
+								
+								<div>
+									<label for="puzzlePieces" class="block text-sm font-medium text-gray-700 mb-2">
+										Number of Pieces
+									</label>
+									<input
+										id="puzzlePieces"
+										type="number"
+										name="puzzlePieces"
+										value={initialValues.puzzlePieces ?? 9}
+										min="4"
+										max="100"
+										placeholder="9"
+										class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:outline-none transition-colors"
+									/>
+									<p class="text-xs text-gray-500 mt-1">Recommended: 4 (2×2), 9 (3×3), 16 (4×4), or 25 (5×5) pieces</p>
 								</div>
 							</div>
 						</div>

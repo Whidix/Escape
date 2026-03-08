@@ -15,6 +15,13 @@
       "when": 1772977993829,
       "tag": "0001_new_silver_samurai",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1772994053752,
+      "tag": "0002_naive_loa",
+      "breakpoints": true
     }
   ]
 }

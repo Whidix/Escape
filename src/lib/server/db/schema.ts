@@ -30,6 +30,8 @@ export const step = pgTable('step', {
 	latitude: doublePrecision('latitude'), // Target latitude for location steps
 	longitude: doublePrecision('longitude'), // Target longitude for location steps
 	proximityRadius: integer('proximity_radius').default(50), // Proximity radius in meters (default: 50m)
+	imageUrl: text('image_url'), // Image URL for puzzle steps (stored in uploads folder)
+	puzzlePieces: integer('puzzle_pieces'), // Number of pieces for puzzle steps
 	createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
